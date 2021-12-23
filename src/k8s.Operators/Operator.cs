@@ -7,6 +7,7 @@ using Microsoft.Rest;
 using Microsoft.Extensions.Logging;
 using k8s.Operators.Logging;
 using System.Diagnostics.CodeAnalysis;
+using Microsoft.IdentityModel.Tokens;
 
 namespace k8s.Operators
 {
@@ -34,7 +35,7 @@ namespace k8s.Operators
             this._logger = loggerFactory?.CreateLogger<Operator>() ?? SilentLogger.Instance;
             this._watchers = new List<EventWatcher>();
             this._cts = new CancellationTokenSource();
-            
+
             TaskScheduler.UnobservedTaskException += (o, ev) =>
             {
                 _logger.LogError(ev.Exception, "Unobserved exception");
@@ -93,7 +94,7 @@ namespace k8s.Operators
 
             // Retrieve the type of R
             var R = typeof(C).BaseType.GetGenericArguments()[0];
-            
+
             // Instantiate the controller implementing IController<R> via the standard constructor (OperatorConfiguration, IKubernetes, ILoggerFactory)
             object controller = Activator.CreateInstance(typeof(C), _configuration, _client, _loggerFactory);
 
@@ -102,7 +103,7 @@ namespace k8s.Operators
                 .GetMethod("AddController")
                 .MakeGenericMethod(R)
                 .Invoke(this, new object[] { controller, _configuration.WatchNamespace, _configuration.WatchLabelSelector });
-            
+
             return (IController) controller;
         }
 
@@ -128,7 +129,7 @@ namespace k8s.Operators
             _isStarted = true;
 
             var tasks = new List<Task>();
-            
+
             foreach (var entry in _watchers)
             {
                 // Invoke WatchCustomResourceAsync() via reflection, since T is in a variable
@@ -145,7 +146,7 @@ namespace k8s.Operators
                             _logger.LogError(t.Exception.Flatten().InnerException, $"Error watching {entry.Namespace}/{entry.CRD.Plural} {entry.LabelSelector}");
                         }
                     });
-                
+
                 tasks.Add(watcher);
             }
 
@@ -178,27 +179,41 @@ namespace k8s.Operators
                 return;
             }
 
-            var response = await _client.ListNamespacedCustomObjectWithHttpMessagesAsync(
-                watcher.CRD.Group,
-                watcher.CRD.Version,
-                watcher.Namespace,
-                watcher.CRD.Plural,
-                watch: true,
-                labelSelector: watcher.LabelSelector,
-                timeoutSeconds: (int)TimeSpan.FromMinutes(60).TotalSeconds,
-                cancellationToken: _cts.Token
-            ).ConfigureAwait(false);
+            Task<HttpOperationResponse<object>> response;
+            if (watcher.Namespace.IsNullOrEmpty())
+            {
+                response = _client.ListClusterCustomObjectWithHttpMessagesAsync(
+                    watcher.CRD.Group,
+                    watcher.CRD.Version,
+                    watcher.CRD.Plural,
+                    watch: true,
+                    labelSelector: watcher.LabelSelector,
+                    timeoutSeconds: (int)TimeSpan.FromMinutes(60).TotalSeconds,
+                    cancellationToken: _cts.Token
+                );
+            }
+            else
+            {
+                response = _client.ListNamespacedCustomObjectWithHttpMessagesAsync(
+                    watcher.CRD.Group,
+                    watcher.CRD.Version,
+                    watcher.Namespace,
+                    watcher.CRD.Plural,
+                    watch: true,
+                    labelSelector: watcher.LabelSelector,
+                    timeoutSeconds: (int)TimeSpan.FromMinutes(60).TotalSeconds,
+                    cancellationToken: _cts.Token
+                );
+            }
 
             _logger.LogDebug($"Begin watch {watcher.Namespace}/{watcher.CRD.Plural} {watcher.LabelSelector}");
 
-            using (var _ = response.Watch<T, object>(watcher.OnIncomingEvent, OnWatcherError, OnWatcherClose))
-            {
-                await WaitOneAsync(_cts.Token.WaitHandle);
+            using var _ = response.Watch<T, object>(watcher.OnIncomingEvent, OnWatcherError, OnWatcherClose);
+            await WaitOneAsync(_cts.Token.WaitHandle);
 
-                _logger.LogDebug($"End watch {watcher.Namespace}/{watcher.CRD.Plural} {watcher.LabelSelector}");
-            }
+            _logger.LogDebug($"End watch {watcher.Namespace}/{watcher.CRD.Plural} {watcher.LabelSelector}");
         }
-        
+
         [ExcludeFromCodeCoverage]
         protected void OnWatcherError(Exception exception)
         {
@@ -236,9 +251,9 @@ namespace k8s.Operators
 
             var rwh = ThreadPool.RegisterWaitForSingleObject(
                 waitHandle,
-                callBack: (state, timedOut) => { tcs.TrySetResult(!timedOut); }, 
+                callBack: (state, timedOut) => { tcs.TrySetResult(!timedOut); },
                 state: null,
-                millisecondsTimeOutInterval: millisecondsTimeOutInterval, 
+                millisecondsTimeOutInterval: millisecondsTimeOutInterval,
                 executeOnlyOnce: true
             );
 
@@ -251,7 +266,7 @@ namespace k8s.Operators
                 {
                     return t.Result;
                 }
-                catch 
+                catch
                 {
                     return false;
                     throw;

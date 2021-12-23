@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics.CodeAnalysis;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using k8s;
@@ -30,7 +31,8 @@ namespace k8s.Operators
             this._logger = loggerFactory?.CreateLogger<Controller<T>>() ?? SilentLogger.Instance;
             this._eventManager = new EventManager(loggerFactory);
             this._changeTracker = new ResourceChangeTracker(configuration, loggerFactory);
-            this._crd = (CustomResourceDefinitionAttribute) Attribute.GetCustomAttribute(typeof(T), typeof(CustomResourceDefinitionAttribute));
+            this._crd = (CustomResourceDefinitionAttribute)Attribute.GetCustomAttribute(typeof(T),
+                typeof(CustomResourceDefinitionAttribute));
             this.RetryPolicy = configuration.RetryPolicy;
         }
 
@@ -74,18 +76,18 @@ namespace k8s.Operators
             while (!cancellationToken.IsCancellationRequested)
             {
                 // Dequeue the next event to process for this resource, if any
-                var nextEvent =_eventManager.Dequeue(resourceEvent.ResourceUid);
+                var nextEvent = _eventManager.Dequeue(resourceEvent.ResourceUid);
                 if (nextEvent == null)
                 {
                     break;
                 }
-                
+
                 await HandleEventAsync(nextEvent, cancellationToken);
             }
 
             _logger.LogDebug($"End ProcessEvent, {resourceEvent}");
         }
-        
+
         private async Task HandleEventAsync(CustomResourceEvent resourceEvent, CancellationToken cancellationToken)
         {
             if (resourceEvent == null)
@@ -111,7 +113,7 @@ namespace k8s.Operators
 
                 // Something went wrong
                 if (!CanTryAgain(resourceEvent, attempt, cancellationToken))
-                {                    
+                {
                     break;
                 }
 
@@ -122,7 +124,7 @@ namespace k8s.Operators
 
                 // Increase the delay for the next attempt
                 attempt++;
-                delay = (int)(delay * RetryPolicy.DelayMultiplier);                    
+                delay = (int)(delay * RetryPolicy.DelayMultiplier);
             }
 
             _logger.LogDebug($"End HandleEvent, {resourceEvent}");
@@ -130,7 +132,8 @@ namespace k8s.Operators
             _eventManager.EndHandleEvent(resourceEvent);
         }
 
-        private bool CanTryAgain(CustomResourceEvent resourceEvent, int attemptNumber, CancellationToken cancellationToken)
+        private bool CanTryAgain(CustomResourceEvent resourceEvent, int attemptNumber,
+            CancellationToken cancellationToken)
         {
             if (cancellationToken.IsCancellationRequested)
             {
@@ -154,7 +157,8 @@ namespace k8s.Operators
             return true;
         }
 
-        private async Task<bool> TryHandleEventAsync(CustomResourceEvent resourceEvent, CancellationToken cancellationToken)
+        private async Task<bool> TryHandleEventAsync(CustomResourceEvent resourceEvent,
+            CancellationToken cancellationToken)
         {
             bool handled = true;
 
@@ -177,7 +181,8 @@ namespace k8s.Operators
             }
             catch (Exception exception)
             {
-                if (exception is HttpOperationException httpException && httpException.Response?.StatusCode == System.Net.HttpStatusCode.Conflict)
+                if (exception is HttpOperationException httpException &&
+                    httpException.Response?.StatusCode == System.Net.HttpStatusCode.Conflict)
                 {
                     // Conflicts happen. The next event will make the resource consistent again
                     _logger.LogDebug(exception, $"Conflict handling {resourceEvent}");
@@ -278,7 +283,6 @@ namespace k8s.Operators
         {
             // Build the delta JSON
             var patch = new JsonPatchDocument<R>().Replace(x => x.Status, resource.Status);
-
             return PatchCustomResourceStatusAsync(resource, patch, cancellationToken);
         }
 
@@ -312,60 +316,77 @@ namespace k8s.Operators
         {
             // Remove the finalizer
             resource.Metadata.Finalizers.Remove(_crd.Finalizer);
-
             return ReplaceCustomResourceAsync(resource, cancellationToken);
         }
 
         private async Task<T> ReplaceCustomResourceAsync(T resource, CancellationToken cancellationToken)
         {
-            _logger.LogDebug($"Replace Custom Resource, {(resource == null ? "" : JsonConvert.SerializeObject(resource))}");
+            _logger.LogDebug(
+                $"Replace Custom Resource, {(resource == null ? "" : JsonConvert.SerializeObject(resource))}");
 
-            // Replace the resource
-            var result = await _client.ReplaceNamespacedCustomObjectAsync(
-                resource,
-                _crd.Group, 
-                _crd.Version, 
-                resource.Metadata.NamespaceProperty, 
-                _crd.Plural, 
-                resource.Metadata.Name,
-                cancellationToken: cancellationToken
-            ).ConfigureAwait(false);
+            var result = (string.IsNullOrEmpty(resource.Metadata?.NamespaceProperty)) switch
+            {
+                true => await _client.ReplaceClusterCustomObjectAsync(
+                    resource,
+                    _crd.Group,
+                    _crd.Version,
+                    _crd.Plural,
+                    resource.Metadata?.Name ?? resource.Name(),
+                    cancellationToken: cancellationToken
+                ).ConfigureAwait(false),
+                false => await _client.ReplaceNamespacedCustomObjectAsync(
+                    resource,
+                    _crd.Group,
+                    _crd.Version,
+                    resource.Metadata.NamespaceProperty,
+                    _crd.Plural,
+                    resource.Metadata.Name,
+                    cancellationToken: cancellationToken
+                ).ConfigureAwait(false),
+            };
 
             return ToCustomResource(result);
         }
 
-        private async Task<T> PatchCustomResourceStatusAsync<R>(R resource, IJsonPatchDocument patch, CancellationToken cancellationToken) where R : T, IStatus
+        private async Task<T> PatchCustomResourceStatusAsync<R>(R resource, IJsonPatchDocument patch,
+            CancellationToken cancellationToken) where R : T, IStatus
         {
             _logger.LogDebug($"Patch Status, {(patch == null ? "" : JsonConvert.SerializeObject(patch))}");
-
-            // Patch the status
-            var result = await _client.PatchNamespacedCustomObjectStatusAsync(
-                new V1Patch(patch), 
-                _crd.Group, 
-                _crd.Version, 
-                resource.Metadata.NamespaceProperty, 
-                _crd.Plural, 
-                resource.Metadata.Name,
-                cancellationToken: cancellationToken
-            ).ConfigureAwait(false);
+            var result = string.IsNullOrEmpty(resource.Metadata.NamespaceProperty) switch
+            {
+                true => await _client.PatchClusterCustomObjectStatusAsync(
+                    new V1Patch(patch, V1Patch.PatchType.ApplyPatch),
+                    _crd.Group,
+                    _crd.Version,
+                    _crd.Plural,
+                    resource.Metadata.Name,
+                    cancellationToken: cancellationToken
+                ).ConfigureAwait(false),
+                false => await _client.PatchNamespacedCustomObjectStatusAsync(
+                    new V1Patch(patch, V1Patch.PatchType.MergePatch),
+                    _crd.Group,
+                    _crd.Version,
+                    resource.Metadata.NamespaceProperty,
+                    _crd.Plural,
+                    resource.Metadata.Name,
+                    cancellationToken: cancellationToken
+                ).ConfigureAwait(false)
+            };
 
             return ToCustomResource(result);
         }
 
-        private T ToCustomResource(object input)
+        private static T ToCustomResource(object input)
         {
-            T result = default(T);
-
-            if (input is JObject json)
+            return input switch
             {
-                result = json.ToObject<T>();
-            }
-            else
-            {
-                result = (T)input;
-            }
-
-            return result;
+                JObject json => json.ToObject<T>(),
+                JsonElement json2 => json2.Deserialize<T>(new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true,
+                }),
+                _ => (T)input
+            };
         }
     }
 }

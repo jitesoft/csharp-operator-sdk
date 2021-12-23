@@ -1,11 +1,12 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>netcoreapp3.1</TargetFramework>
+    <TargetFramework>net6.0</TargetFramework>
     <AssemblyName>k8s.Operators</AssemblyName>
     <Version>1.1.0-beta1</Version>
-    <SignAssembly>true</SignAssembly>
-    <AssemblyOriginatorKeyFile>k8s.Operators.snk</AssemblyOriginatorKeyFile>    
+    <AssemblyOriginatorKeyFile>k8s.Operators.snk</AssemblyOriginatorKeyFile>
+    <LangVersion>10</LangVersion>
+    <PackageVersion>1.2.0-alpha1</PackageVersion>    
   </PropertyGroup>
   
   <PropertyGroup>
@@ -23,10 +24,11 @@
 	</PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="KubernetesClient" Version="2.0.30" />
-    <PackageReference Include="Microsoft.Extensions.Logging" Version="3.1.8" />
-    <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="3.1.8" />
-    <PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="3.1.8" />
+    <PackageReference Include="KubernetesClient" Version="7.0.3" />
+    <PackageReference Include="Microsoft.AspNetCore.JsonPatch" Version="6.0.1" />
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="6.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="6.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="6.0.0" />
   </ItemGroup>
 
 </Project>
