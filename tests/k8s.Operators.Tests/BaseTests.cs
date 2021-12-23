@@ -4,7 +4,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using k8s.Models;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Console;
 using Microsoft.Rest;
 using Moq;
 using Xunit;

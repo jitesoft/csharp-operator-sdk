@@ -7,8 +7,6 @@ using k8s.Models;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Rest;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 
 namespace k8s.Operators
 {
@@ -305,9 +303,9 @@ namespace k8s.Operators
         }
 
         /// <summary>
-        /// Updates the status subresource
+        /// Updates the status subresource.
+        /// See https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definitions/#status-subresource
         /// </summary>
-        /// <see cref="https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definitions/#status-subresource"/>
         protected Task<T> UpdateStatusAsync<TResource>(TResource resource, string fieldManager = null, CancellationToken cancellationToken = default) where TResource : T, IStatus
         {
             return PatchCustomResourceStatusAsync(resource, fieldManager, cancellationToken);
@@ -350,7 +348,7 @@ namespace k8s.Operators
         {
             _logger.LogDebug(
                 "Replace Custom Resource, {Resource}",
-                resource == null ? "" : JsonConvert.SerializeObject(resource)
+                resource == null ? "" : JsonSerializer.Serialize(resource)
             );
 
             var result = string.IsNullOrEmpty(resource.Namespace()) switch
@@ -388,7 +386,7 @@ namespace k8s.Operators
 
             _logger.LogDebug(
                 "Patch Status, {Resource}",
-                JsonConvert.SerializeObject(patchObject)
+                JsonSerializer.Serialize(patchObject)
             );
 
             var result = string.IsNullOrEmpty(resource.Namespace()) switch
@@ -423,7 +421,6 @@ namespace k8s.Operators
         {
             return input switch
             {
-                JObject json => json.ToObject<T>(),
                 JsonElement json => json.Deserialize<T>(new JsonSerializerOptions
                 {
                     PropertyNameCaseInsensitive = true,

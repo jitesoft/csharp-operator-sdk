@@ -1,5 +1,3 @@
-using System.Dynamic;
-
 namespace k8s.Operators
 {
     /// <summary>

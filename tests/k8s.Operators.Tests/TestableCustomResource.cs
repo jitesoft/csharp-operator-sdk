@@ -1,5 +1,3 @@
-using k8s.Operators;
-
 namespace k8s.Operators.Tests
 {
     [CustomResourceDefinition("group", "v1", "resources")]
@@ -7,11 +5,13 @@ namespace k8s.Operators.Tests
     {
         public TestableCustomResource()
         {
-            Metadata = new Models.V1ObjectMeta();
-            Metadata.NamespaceProperty = "ns1";
-            Metadata.Name = "resource1";
-            Metadata.Generation = 1;
-            Metadata.Uid = "id1";
+            Metadata = new Models.V1ObjectMeta
+            {
+                NamespaceProperty = "ns1",
+                Name = "resource1",
+                Generation = 1,
+                Uid = "id1"
+            };
         }
 
         public class TestableSpec

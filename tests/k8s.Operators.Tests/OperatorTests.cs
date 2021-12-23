@@ -2,8 +2,6 @@ using System;
 using System.Threading.Tasks;
 using Microsoft.Rest;
 using Xunit;
-using Moq;
-using k8s.Operators;
 
 namespace k8s.Operators.Tests
 {
@@ -86,7 +84,7 @@ namespace k8s.Operators.Tests
 
             // Act
             var controller = (TestableController) _operator.AddControllerOfType<TestableController>();
-            
+
             // Assert
             var task =_operator.StartAsync();
             _operator.SimulateEvent(controller, WatchEventType.Added, resource);
@@ -107,7 +105,7 @@ namespace k8s.Operators.Tests
 
             // Act
             _operator.SimulateEvent(controller, eventType, resource);
-            
+
             // Assert
             _operator.Stop(); await task;
             VerifyAddOrModifyIsCalledWith(controller, resource);
@@ -127,7 +125,7 @@ namespace k8s.Operators.Tests
 
             // Act
             _operator.SimulateEvent(controller, eventType, resource);
-            
+
             // Assert
             _operator.Stop(); await task;
             VerifyAddOrModifyIsNotCalled(controller);
@@ -153,7 +151,7 @@ namespace k8s.Operators.Tests
             // Act
             _operator.SimulateEvent(controller1, eventType, resource1);
             _operator.SimulateEvent(controller2, eventType, resource2);
-            
+
             // Assert
             _operator.Stop(); await task;
             VerifyAddOrModifyIsCalledWith(controller1, resource1);

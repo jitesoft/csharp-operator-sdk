@@ -1,8 +1,8 @@
 using System;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using k8s.Models;
-using Newtonsoft.Json;
 using Xunit;
 using Moq;
 
@@ -454,7 +454,7 @@ namespace k8s.Operators.Tests
 
             // Semantic equal assertion (JsonPatchDocument.Equals doesn't compare the content)
             var actual = (_clientMock.Invocations[0].Arguments[0] as V1Patch);
-            Assert.Equal(JsonConvert.SerializeObject(expected), JsonConvert.SerializeObject(actual));
+            Assert.Equal(JsonSerializer.Serialize(expected), JsonSerializer.Serialize(actual));
 
             _clientMock.VerifyNoOtherCalls();
         }

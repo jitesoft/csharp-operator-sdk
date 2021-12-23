@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using k8s.Operators.Logging;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -18,9 +17,9 @@ namespace k8s.Operators
 
         public ResourceChangeTracker(OperatorConfiguration configuration, ILoggerFactory loggerFactory)
         {
-            this._logger = loggerFactory?.CreateLogger<ResourceChangeTracker>() ?? NullLogger<ResourceChangeTracker>.Instance;
-            this._lastResourceGenerationProcessed = new Dictionary<string, long>();
-            this._discardDuplicates = configuration.DiscardDuplicateSpecGenerations;
+            _logger = loggerFactory?.CreateLogger<ResourceChangeTracker>() ?? NullLogger<ResourceChangeTracker>.Instance;
+            _lastResourceGenerationProcessed = new Dictionary<string, long>();
+            _discardDuplicates = configuration.DiscardDuplicateSpecGenerations;
         }
 
         /// <summary>
@@ -30,16 +29,14 @@ namespace k8s.Operators
         {
             if (_discardDuplicates)
             {
-                bool processedInPast = _lastResourceGenerationProcessed.TryGetValue(resource.Metadata.Uid, out long resourceGeneration);
+                var processedInPast = _lastResourceGenerationProcessed.TryGetValue(resource.Metadata.Uid, out long resourceGeneration);
 
                 return processedInPast
                     && resource.Metadata.Generation != null
                     && resourceGeneration >= resource.Metadata.Generation.Value;
             }
-            else
-            {
-                return false;
-            }
+
+            return false;
         }
 
         /// <summary>

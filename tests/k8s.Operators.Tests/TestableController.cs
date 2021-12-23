@@ -1,4 +1,3 @@
-using k8s.Operators;
 using Microsoft.Extensions.Logging;
 using System.Threading.Tasks;
 using System.Collections.Generic;

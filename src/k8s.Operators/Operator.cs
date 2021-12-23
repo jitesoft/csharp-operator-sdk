@@ -5,7 +5,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Rest;
 using Microsoft.Extensions.Logging;
-using k8s.Operators.Logging;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using Microsoft.Extensions.Logging.Abstractions;

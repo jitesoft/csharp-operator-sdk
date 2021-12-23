@@ -1,15 +1,14 @@
 using System.Dynamic;
 using k8s.Models;
-using k8s.Operators;
 
 namespace k8s.Operators.Tests
 {
     [CustomResourceDefinition("group", "v1", "resources")]
-    public class TestableDynamicCustomResource : Operators.DynamicCustomResource
+    public class TestableDynamicCustomResource : DynamicCustomResource
     {
-        public TestableDynamicCustomResource() : base()
+        public TestableDynamicCustomResource()
         {
-            Metadata = new Models.V1ObjectMeta();
+            Metadata = new V1ObjectMeta();
             Metadata.EnsureFinalizers().Add(CustomResourceDefinitionAttribute.DEFAULT_FINALIZER);
             Metadata.NamespaceProperty = "ns1";
             Metadata.Name = "resource1";
