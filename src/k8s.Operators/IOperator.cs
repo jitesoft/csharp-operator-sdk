@@ -14,16 +14,25 @@ namespace k8s.Operators
         /// <param name="controller">The controller for the custom resource</param>
         /// <param name="watchNamespace">The watched namespace. Set to null to watch all namespaces</param>
         /// <param name="labelSelector">The <see href="https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/#list-and-watch-filtering">label selector</see> to filter the sets of events returned/></param>
-        /// <typeparam name="R">The type of the custom resource</typeparam>
-        IOperator AddController<R>(IController<R> controller, string watchNamespace = "default", string labelSelector = null) where R : CustomResource;
+        /// <typeparam name="TResource">The type of the custom resource</typeparam>
+        IOperator AddController<TResource>(IController<TResource> controller, string watchNamespace = "default", string labelSelector = null) where TResource : CustomResource;
+
+        /// <summary>
+        /// Adds a controller of type TController to handle events for the custom resource TResource.
+        /// </summary>
+        /// <typeparam name="TController">Controller.</typeparam>
+        /// <typeparam name="TResource">Resource.</typeparam>
+        /// <returns>The instance of the controller.</returns>
+        IController AddControllerOfType<TController, TResource>() where TController : IController<TResource>
+            where TResource : CustomResource;
 
         /// <summary>
         /// Adds a new instance of a controller of type C to handle the events of the custom resource
         /// </summary>
-        /// <typeparam name="C">The type of the controller. C must implement IController<R> and expose a constructor that accepts (OperatorConfiguration, IKubernetes, ILoggerFactory)</typeparam>
-        /// <returns>The instance of the controller</return>
-        IController AddControllerOfType<C>() where C : IController;
-        
+        /// <typeparam name="TController">The type of the controller. TController must implement IController&lt;TResource&gt; and expose a constructor that accepts (OperatorConfiguration, IKubernetes, ILoggerFactory).</typeparam>
+        /// <return>The instance of the controller</return>
+        IController AddControllerOfType<TController>() where TController : IController;
+
         /// <summary>
         /// Starts watching and handling events
         /// </summary>

@@ -8,7 +8,7 @@ namespace k8s.Operators
         /// <summary>
         /// Returns the default configuration.
         /// </summary>
-        public static OperatorConfiguration Default = new OperatorConfiguration(); // TODO: make readonly
+        public static readonly OperatorConfiguration Default = new OperatorConfiguration();
 
         /// <summary>
         /// The namespace to watch. Set to empty string to watch all namespaces.

@@ -23,7 +23,7 @@ namespace k8s.Operators.Tests
 
         public List<TestableCustomResource> Invocations_AddOrModify = new List<TestableCustomResource>();
         public List<TestableCustomResource> Invocations_Delete = new List<TestableCustomResource>();
-        public List<(TestableCustomResource resource, bool deleteEvent)> Invocations = new List<(TestableCustomResource resource, bool deleteEvent)>();        
+        public List<(TestableCustomResource resource, bool deleteEvent)> Invocations = new List<(TestableCustomResource resource, bool deleteEvent)>();
         public List<(TestableCustomResource resource, bool deleteEvent)> CompletedEvents = new List<(TestableCustomResource resource, bool deleteEvent)>();
 
         private Queue<TaskCompletionSource<object>> _signals = new Queue<TaskCompletionSource<object>>();
@@ -76,7 +76,7 @@ namespace k8s.Operators.Tests
         /// <summary>
         /// Protected method exposed as Public
         /// </summary>
-        public Task<TestableCustomResource> Exposed_UpdateStatusAsync(TestableCustomResource resource, CancellationToken cancellationToken) => UpdateStatusAsync(resource, cancellationToken);
+        public Task<TestableCustomResource> Exposed_UpdateStatusAsync(TestableCustomResource resource, CancellationToken cancellationToken) => UpdateStatusAsync(resource, null, cancellationToken);
 
         /// <summary>
         /// Throws an exception in the next calls to AddOrModifyAsync or DeleteAsync

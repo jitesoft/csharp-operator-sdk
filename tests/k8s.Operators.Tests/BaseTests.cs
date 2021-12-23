@@ -30,43 +30,50 @@ namespace k8s.Operators.Tests
             _clientMock = new Mock<IKubernetes>();
 
             _clientMock.Setup(x => x.ListNamespacedCustomObjectWithHttpMessagesAsync(
-                    It.IsAny<string>(), 
                     It.IsAny<string>(),
                     It.IsAny<string>(),
                     It.IsAny<string>(),
                     It.IsAny<string>(),
-                    It.IsAny<string>(), 
-                    It.IsAny<string>(), 
-                    It.IsAny<int?>(), 
+                    It.IsAny<bool>(),
+                    It.IsAny<string>(),
+                    It.IsAny<string>(),
+                    It.IsAny<string>(),
+                    It.IsAny<int?>(),
+                    It.IsAny<string>(),
                     It.IsAny<string>(),
                     It.IsAny<int?>(),
                     It.IsAny<bool?>(),
-                    It.IsAny<string>(),
-                    It.IsAny<Dictionary<string, List<string>>>(),
+                    It.IsAny<bool>(),
+                    It.IsAny<Dictionary<string, IList<string>>>(),
                     It.IsAny<System.Threading.CancellationToken>()
                 )
             ).Returns(Task.FromResult(new HttpOperationResponse<object>()));
 
             _clientMock.Setup(x => x.ReplaceNamespacedCustomObjectWithHttpMessagesAsync(
-                    It.IsAny<object>(), 
+                    It.IsAny<object>(),
                     It.IsAny<string>(),
                     It.IsAny<string>(),
                     It.IsAny<string>(),
                     It.IsAny<string>(),
                     It.IsAny<string>(),
-                    It.IsAny<Dictionary<string, List<string>>>(),
+                    It.IsAny<string>(),
+                    It.IsAny<string>(),
+                    It.IsAny<Dictionary<string, IList<string>>>(),
                     It.IsAny<System.Threading.CancellationToken>()
                 )
             ).Returns(Task.FromResult(new HttpOperationResponse<object>()));
 
             _clientMock.Setup(x => x.PatchNamespacedCustomObjectStatusWithHttpMessagesAsync(
-                    It.IsAny<object>(), 
+                    It.IsAny<object>(),
                     It.IsAny<string>(),
                     It.IsAny<string>(),
                     It.IsAny<string>(),
                     It.IsAny<string>(),
                     It.IsAny<string>(),
-                    It.IsAny<Dictionary<string, List<string>>>(),
+                    It.IsAny<string>(),
+                    It.IsAny<string>(),
+                    It.IsAny<bool?>(),
+                    It.IsAny<Dictionary<string, IList<string>>>(),
                     It.IsAny<System.Threading.CancellationToken>()
                 )
             ).Returns(Task.FromResult(new HttpOperationResponse<object>()));
@@ -85,6 +92,7 @@ namespace k8s.Operators.Tests
             {
                 resource.Metadata.NamespaceProperty = ns;
             }
+
             resource.Metadata.Uid = uid;
             resource.Metadata.DeletionTimestamp = deletionTimeStamp;
             resource.Metadata.Generation = generation;
@@ -100,6 +108,6 @@ namespace k8s.Operators.Tests
         protected void VerifyAddOrModifyIsCalledWith(TestableController controller,params TestableCustomResource[] inputs) => Assert.Equal(inputs, controller.Invocations_AddOrModify);
         protected void VerifyDeleteIsCalledWith(TestableController controller,params TestableCustomResource[] inputs) => Assert.Equal(inputs, controller.Invocations_Delete);
         protected void VerifyAddOrModifyIsNotCalled(TestableController controller) => Assert.Equal(new TestableCustomResource[] { }, controller.Invocations_AddOrModify);
-        protected void VerifyDeleteIsNotCalled(TestableController controller) => Assert.Equal(new TestableCustomResource[] { }, controller.Invocations_Delete);        
+        protected void VerifyDeleteIsNotCalled(TestableController controller) => Assert.Equal(new TestableCustomResource[] { }, controller.Invocations_Delete);
     }
 }

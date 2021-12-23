@@ -1,4 +1,4 @@
-using System;
+using System.Text.Json.Serialization;
 using k8s.Models;
 using Newtonsoft.Json;
 
@@ -10,6 +10,7 @@ namespace k8s.Operators
     public abstract class CustomResource : KubernetesObject, IKubernetesObject<V1ObjectMeta>
     {
         [JsonProperty("metadata")]
+        [JsonPropertyName("metadata")]
         public V1ObjectMeta Metadata { get; set; }
 
         public override string ToString()
@@ -24,6 +25,7 @@ namespace k8s.Operators
     public abstract class CustomResource<TSpec> : CustomResource, ISpec<TSpec>
     {
         [JsonProperty("spec")]
+        [JsonPropertyName("spec")]
         public TSpec Spec { get; set; }
     }
 
@@ -33,6 +35,7 @@ namespace k8s.Operators
     public abstract class CustomResource<TSpec, TStatus> : CustomResource<TSpec>, IStatus, IStatus<TStatus>
     {
         [JsonProperty("status")]
+        [JsonPropertyName("status")]
         public TStatus Status { get; set; }
 
         object IStatus.Status { get => Status; set => Status = (TStatus) value; }

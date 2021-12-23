@@ -5,9 +5,9 @@ using Microsoft.Extensions.Logging;
 namespace k8s.Operators
 {
     /// <summary>
-    /// Implements the watch callback method for a given <namespace, resource, label selector> 
+    /// Implements the watch callback method for a given namespace, resource, label selector
     /// </summary>
-    public class EventWatcher 
+    public class EventWatcher
     {
         private readonly ILogger _logger;
         private readonly CancellationToken _cancellationToken;
@@ -18,18 +18,20 @@ namespace k8s.Operators
         public string LabelSelector { get; private set; }
         public IController Controller { get; private set; }
 
-        public EventWatcher(Type resourceType, string @namespace, string labelSelector, IController controller, ILogger logger, CancellationToken cancellationToken)
+        public EventWatcher(Type resourceType, string namespaceName, string labelSelector, IController controller, ILogger logger, CancellationToken cancellationToken = default)
         {
-            this.ResourceType = resourceType;
-            this.Namespace = @namespace;
-            this.LabelSelector = labelSelector;
-            this.Controller = controller;
-            this._logger = logger;
-            this._cancellationToken = cancellationToken;
+            ResourceType = resourceType;
+            Namespace = namespaceName;
+            LabelSelector = labelSelector;
+            Controller = controller;
+            _logger = logger;
+            _cancellationToken = cancellationToken;
 
             // Retrieve the CRD associated to the CR
-            var crd = (CustomResourceDefinitionAttribute)Attribute.GetCustomAttribute(resourceType, typeof(CustomResourceDefinitionAttribute));
-            this.CRD = crd;
+            CRD = (CustomResourceDefinitionAttribute)Attribute.GetCustomAttribute(
+                resourceType,
+                typeof(CustomResourceDefinitionAttribute)
+            );
         }
 
         /// <summary>
@@ -38,17 +40,23 @@ namespace k8s.Operators
         public void OnIncomingEvent(WatchEventType eventType, CustomResource resource)
         {
             var resourceEvent = new CustomResourceEvent(eventType, resource);
-
-            _logger.LogDebug($"Received event {resourceEvent}");
+            _logger.LogDebug("Received event {Event}", resourceEvent);
 
             Controller.ProcessEventAsync(resourceEvent, _cancellationToken)
-                .ContinueWith(t =>
+                // ReSharper disable once MethodSupportsCancellation
+                .ContinueWith(task =>
                 {
-                    if (t.IsFaulted)
+                    if (!task.IsFaulted)
                     {
-                        var exception = t.Exception.Flatten().InnerException;
-                        _logger.LogError(exception, $"Error processing {resourceEvent}");
+                        return;
                     }
+
+                    var exception = task.Exception?.Flatten().InnerException;
+                    _logger.LogError(
+                        exception,
+                        "Error processing {Event}",
+                        resourceEvent
+                    );
                 });
         }
     }

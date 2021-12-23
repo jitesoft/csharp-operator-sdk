@@ -2,8 +2,6 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using k8s.Models;
-using k8s.Operators;
-using Microsoft.AspNetCore.JsonPatch;
 using Newtonsoft.Json;
 using Xunit;
 using Moq;
@@ -69,7 +67,7 @@ namespace k8s.Operators.Tests
             // Act
             await _controller.ProcessEventAsync(new CustomResourceEvent(eventType, resource_v1), DUMMY_TOKEN);
             await _controller.ProcessEventAsync(new CustomResourceEvent(eventType, resource_v1), DUMMY_TOKEN); // duplicate generation
-            await _controller.ProcessEventAsync(new CustomResourceEvent(eventType, resource_v2), DUMMY_TOKEN); 
+            await _controller.ProcessEventAsync(new CustomResourceEvent(eventType, resource_v2), DUMMY_TOKEN);
 
             // Assert
             VerifyAddOrModifyIsCalledWith(_controller, resource_v1, resource_v2);
@@ -90,7 +88,7 @@ namespace k8s.Operators.Tests
             // Act
             await controller.ProcessEventAsync(new CustomResourceEvent(eventType, resource_v1), DUMMY_TOKEN);
             await controller.ProcessEventAsync(new CustomResourceEvent(eventType, resource_v1), DUMMY_TOKEN); // duplicate generation
-            await controller.ProcessEventAsync(new CustomResourceEvent(eventType, resource_v2), DUMMY_TOKEN); 
+            await controller.ProcessEventAsync(new CustomResourceEvent(eventType, resource_v2), DUMMY_TOKEN);
 
             // Assert
             VerifyAddOrModifyIsCalledWith(controller, resource_v1, resource_v1, resource_v2);
@@ -115,7 +113,7 @@ namespace k8s.Operators.Tests
             Assert.Equal(0, updatedResource.Metadata.Finalizers.Count);
         }
 
-        
+
         [Fact]
         public async Task ProcessEventAsync_UpdateResourceCallsReplaceApi()
         {
@@ -141,8 +139,10 @@ namespace k8s.Operators.Tests
             await _controller.Exposed_UpdateStatusAsync(resource, DUMMY_TOKEN);
 
             // Assert
-            var patch = new JsonPatchDocument<TestableCustomResource>().Replace(x => x.Status, resource.Status);
-            VerifyPatchIsCalled(patch);
+            VerifyPatchIsCalled(new V1Patch(new
+            {
+                status = resource.Status
+            }, V1Patch.PatchType.MergePatch));
             VerifyNoOtherApiIsCalled();
         }
 
@@ -204,7 +204,7 @@ namespace k8s.Operators.Tests
         {
             var resource_v1 = CreateCustomResource(generation: 1, deletionTimeStamp: delete1 ? DateTime.Now : (DateTime?) null);
             var resource_v2 = CreateCustomResource(generation: 2, deletionTimeStamp: delete2 ? DateTime.Now : (DateTime?) null);
-            
+
             // Send 2 updates in a row for the same resource
 
             // Update #1
@@ -246,9 +246,9 @@ namespace k8s.Operators.Tests
         {
             var resource1 = CreateCustomResource(uid: "1", deletionTimeStamp: delete1 ? DateTime.Now : (DateTime?) null);
             var resource2 = CreateCustomResource(uid: "2", deletionTimeStamp: delete2 ? DateTime.Now : (DateTime?) null);
-            
+
             // Send 2 updates in a row for the different resources
-            
+
             // Update #1
             var token1 = _controller.BlockNextEvent();
             var task1 = _controller.ProcessEventAsync(new CustomResourceEvent(eventType1, resource1), DUMMY_TOKEN);
@@ -376,7 +376,7 @@ namespace k8s.Operators.Tests
             // Will block
             var task1 = _controller.ProcessEventAsync(new CustomResourceEvent(eventType, resource), cts.Token);
 
-            // 
+            //
             cts.Cancel();
 
             // Unblock #1, will throw an exception. But since #2 has arrived in the meantime, #1 will be discarded
@@ -387,12 +387,12 @@ namespace k8s.Operators.Tests
             // Assert
             VerifyCompletedEvents(_controller);
         }
-        
+
         [Theory]
         [InlineData(WatchEventType.Added)]
         [InlineData(WatchEventType.Modified)]
         public async Task ProcessEventAsync_WithDynamicCustomResource(WatchEventType eventType)
-        {            
+        {
             // Arrange
             var resource = new TestableDynamicCustomResource();
             resource.Spec.property = "desired";
@@ -424,6 +424,8 @@ namespace k8s.Operators.Tests
                 "resources",
                 "resource1",
                 null,
+                null,
+                null,
                 default(System.Threading.CancellationToken)
             ), Times.Once);
 
@@ -432,7 +434,7 @@ namespace k8s.Operators.Tests
             _clientMock.VerifyNoOtherCalls();
         }
 
-        private void VerifyPatchIsCalled(IJsonPatchDocument expected)
+        private void VerifyPatchIsCalled(V1Patch expected)
         {
             // Verify the API has been called once
             _clientMock.Verify(x => x.PatchNamespacedCustomObjectStatusWithHttpMessagesAsync
@@ -444,11 +446,14 @@ namespace k8s.Operators.Tests
                 "resources",
                 "resource1",
                 null,
+                null,
+                null,
+                null,
                 default(System.Threading.CancellationToken)
             ), Times.Once);
 
             // Semantic equal assertion (JsonPatchDocument.Equals doesn't compare the content)
-            var actual = (_clientMock.Invocations[0].Arguments[0] as V1Patch).Content as IJsonPatchDocument;
+            var actual = (_clientMock.Invocations[0].Arguments[0] as V1Patch);
             Assert.Equal(JsonConvert.SerializeObject(expected), JsonConvert.SerializeObject(actual));
 
             _clientMock.VerifyNoOtherCalls();

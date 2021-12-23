@@ -3,11 +3,9 @@ using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
-using k8s;
 using k8s.Models;
-using k8s.Operators.Logging;
-using Microsoft.AspNetCore.JsonPatch;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Rest;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -27,13 +25,13 @@ namespace k8s.Operators
 
         public Controller(OperatorConfiguration configuration, IKubernetes client, ILoggerFactory loggerFactory = null)
         {
-            this._client = client;
-            this._logger = loggerFactory?.CreateLogger<Controller<T>>() ?? SilentLogger.Instance;
-            this._eventManager = new EventManager(loggerFactory);
-            this._changeTracker = new ResourceChangeTracker(configuration, loggerFactory);
-            this._crd = (CustomResourceDefinitionAttribute)Attribute.GetCustomAttribute(typeof(T),
+            _client = client;
+            _logger = loggerFactory?.CreateLogger<Controller<T>>() ?? NullLogger<Controller<T>>.Instance;
+            _eventManager = new EventManager(loggerFactory);
+            _changeTracker = new ResourceChangeTracker(configuration, loggerFactory);
+            _crd = (CustomResourceDefinitionAttribute)Attribute.GetCustomAttribute(typeof(T),
                 typeof(CustomResourceDefinitionAttribute));
-            this.RetryPolicy = configuration.RetryPolicy;
+            RetryPolicy = configuration.RetryPolicy;
         }
 
         /// <summary>
@@ -48,26 +46,37 @@ namespace k8s.Operators
         /// <param name="cancellationToken">Signals if the current execution has been canceled</param>
         public async Task ProcessEventAsync(CustomResourceEvent resourceEvent, CancellationToken cancellationToken)
         {
-            _logger.LogDebug($"Begin ProcessEvent, {resourceEvent}");
+            _logger.LogDebug(
+                "Begin ProcessEvent, {Event}",
+                resourceEvent
+            );
 
-            if (resourceEvent.Type == WatchEventType.Error)
+            switch (resourceEvent.Type)
             {
-                _logger.LogError($"Received Error event, {resourceEvent.Resource}");
-                return;
-            }
-
-            if (resourceEvent.Type == WatchEventType.Deleted)
-            {
-                // Skip Deleted events since there is nothing else to do
-                _logger.LogDebug($"Skip ProcessEvent, received Deleted event, {resourceEvent.Resource}");
-                return;
-            }
-
-            if (resourceEvent.Type == WatchEventType.Bookmark)
-            {
-                // Skip Bookmark events since there is nothing else to do
-                _logger.LogDebug($"Skip ProcessEvent, received Bookmark event, {resourceEvent.Resource}");
-                return;
+                case WatchEventType.Error:
+                    _logger.LogError(
+                        "Received Error event, {Resource}",
+                        resourceEvent.Resource
+                    );
+                    return;
+                case WatchEventType.Deleted:
+                    // Skip Deleted events since there is nothing else to do
+                    _logger.LogDebug(
+                        "Skip ProcessEvent, received Deleted event, {Resource}",
+                        resourceEvent.Resource
+                    );
+                    return;
+                case WatchEventType.Bookmark:
+                    // Skip Bookmark events since there is nothing else to do
+                    _logger.LogDebug(
+                        "Skip ProcessEvent, received Bookmark event, {Resource}",
+                        resourceEvent.Resource
+                    );
+                    return;
+                case WatchEventType.Added:
+                case WatchEventType.Modified:
+                default:
+                    break;
             }
 
             // Enqueue the event
@@ -85,18 +94,24 @@ namespace k8s.Operators
                 await HandleEventAsync(nextEvent, cancellationToken);
             }
 
-            _logger.LogDebug($"End ProcessEvent, {resourceEvent}");
+            _logger.LogDebug(
+                "End ProcessEvent, {Event}",
+                resourceEvent
+            );
         }
 
         private async Task HandleEventAsync(CustomResourceEvent resourceEvent, CancellationToken cancellationToken)
         {
             if (resourceEvent == null)
             {
-                _logger.LogWarning($"Skip HandleEvent, {nameof(resourceEvent)} is null");
+                _logger.LogWarning(
+                    "Skip HandleEvent, {EventName} is null",
+                    nameof(resourceEvent)
+                );
                 return;
             }
 
-            _logger.LogDebug($"Begin HandleEvent, {resourceEvent}");
+            _logger.LogDebug("Begin HandleEvent, {Event}", resourceEvent);
 
             _eventManager.BeginHandleEvent(resourceEvent);
 
@@ -117,7 +132,12 @@ namespace k8s.Operators
                     break;
                 }
 
-                _logger.LogDebug($"Retrying to handle {resourceEvent} in {delay}ms (attempt #{attempt})");
+                _logger.LogDebug(
+                    "Retrying to handle {Event} in {Delay}ms (attempt #{Attempt})",
+                    resourceEvent,
+                    delay,
+                    attempt
+                );
 
                 // Wait
                 await Task.Delay(delay);
@@ -127,7 +147,7 @@ namespace k8s.Operators
                 delay = (int)(delay * RetryPolicy.DelayMultiplier);
             }
 
-            _logger.LogDebug($"End HandleEvent, {resourceEvent}");
+            _logger.LogDebug("End HandleEvent, {Event}", resourceEvent);
 
             _eventManager.EndHandleEvent(resourceEvent);
         }
@@ -137,20 +157,30 @@ namespace k8s.Operators
         {
             if (cancellationToken.IsCancellationRequested)
             {
-                _logger.LogDebug($"Cannot retry {resourceEvent}, processing has been canceled");
+                _logger.LogDebug(
+                    "Cannot retry {Event}, processing has been canceled",
+                    resourceEvent
+                );
                 return false;
             }
 
             var upcoming = _eventManager.Peek(resourceEvent.ResourceUid);
             if (upcoming != null)
             {
-                _logger.LogDebug($"Cannot retry {resourceEvent}, received {upcoming} in the meantime");
+                _logger.LogDebug(
+                    "Cannot retry {Event}, received {NextId} in the meantime",
+                    resourceEvent,
+                    upcoming
+                );
                 return false;
             }
 
             if (attemptNumber > RetryPolicy.MaxAttempts)
             {
-                _logger.LogDebug($"Cannot retry {resourceEvent}, max number of attempts reached");
+                _logger.LogDebug(
+                    "Cannot retry {Event}, max number of attempts reached",
+                    resourceEvent
+                );
                 return false;
             }
 
@@ -160,12 +190,11 @@ namespace k8s.Operators
         private async Task<bool> TryHandleEventAsync(CustomResourceEvent resourceEvent,
             CancellationToken cancellationToken)
         {
-            bool handled = true;
+            var handled = true;
 
             try
             {
                 var resource = (T)resourceEvent.Resource;
-
                 if (IsDeletePending(resource))
                 {
                     await HandleDeletedEventAsync(resource, cancellationToken);
@@ -177,7 +206,7 @@ namespace k8s.Operators
             }
             catch (OperationCanceledException)
             {
-                _logger.LogDebug($"Canceled HandleEvent, {resourceEvent}");
+                _logger.LogDebug("Canceled HandleEvent, {Event}", resourceEvent);
             }
             catch (Exception exception)
             {
@@ -185,11 +214,11 @@ namespace k8s.Operators
                     httpException.Response?.StatusCode == System.Net.HttpStatusCode.Conflict)
                 {
                     // Conflicts happen. The next event will make the resource consistent again
-                    _logger.LogDebug(exception, $"Conflict handling {resourceEvent}");
+                    _logger.LogDebug(exception, "Conflict handling {Event}", resourceEvent);
                 }
                 else
                 {
-                    _logger.LogError(exception, $"Error handling {resourceEvent}");
+                    _logger.LogError(exception, "Error handling {Event}", resourceEvent);
                     handled = false;
                 }
             }
@@ -199,45 +228,45 @@ namespace k8s.Operators
 
         private async Task HandleAddedOrModifiedEventAsync(T resource, CancellationToken cancellationToken)
         {
-            _logger.LogDebug($"Handle Added/Modified, {resource}");
+            _logger.LogDebug("Handle Added/Modified, {Resource}", resource);
 
             if (!HasFinalizer(resource))
             {
                 // Before any custom logic, add a finalizer to be used later during the deletion phase
-                _logger.LogDebug($"Add missing finalizer");
+                _logger.LogDebug("Add missing finalizer");
                 await AddFinalizerAsync(resource, cancellationToken);
                 return;
             }
 
             if (_changeTracker.IsResourceGenerationAlreadyHandled(resource))
             {
-                _logger.LogDebug($"Skip AddOrModifyAsync, {resource} already handled");
+                _logger.LogDebug("Skip AddOrModifyAsync, {Resource} already handled", resource);
             }
             else
             {
-                _logger.LogDebug($"Begin AddOrModifyAsync, {resource}");
+                _logger.LogDebug("Begin AddOrModifyAsync, {Resource}", resource);
 
                 // Add/modify logic (implemented by the derived class)
                 await AddOrModifyAsync(resource, cancellationToken);
 
                 _changeTracker.TrackResourceGenerationAsHandled(resource);
 
-                _logger.LogDebug($"End AddOrModifyAsync, {resource}");
+                _logger.LogDebug("End AddOrModifyAsync, {Resource}", resource);
             }
         }
 
         private async Task HandleDeletedEventAsync(T resource, CancellationToken cancellationToken)
         {
-            _logger.LogDebug($"Handle Deleted, {resource}");
+            _logger.LogDebug("Handle Deleted, {Resource}", resource);
 
             if (!HasFinalizer(resource))
             {
                 // The current deletion request is not handled by this controller
-                _logger.LogDebug($"Skip OnDeleted, {resource} has no finalizer");
+                _logger.LogDebug("Skip OnDeleted, {Resource} has no finalizer", resource);
                 return;
             }
 
-            _logger.LogDebug($"Begin OnDeleted, {resource}");
+            _logger.LogDebug("Begin OnDeleted, {Resource}", resource);
 
             // Delete logic (implemented by the derived class)
             await DeleteAsync(resource, cancellationToken);
@@ -249,7 +278,7 @@ namespace k8s.Operators
                 await RemoveFinalizerAsync(resource, cancellationToken);
             }
 
-            _logger.LogDebug($"End OnDeleted, {resource}");
+            _logger.LogDebug("End OnDeleted, {Resource}", resource);
         }
 
         /// <summary>
@@ -279,11 +308,9 @@ namespace k8s.Operators
         /// Updates the status subresource
         /// </summary>
         /// <see cref="https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definitions/#status-subresource"/>
-        protected Task<T> UpdateStatusAsync<R>(R resource, CancellationToken cancellationToken) where R : T, IStatus
+        protected Task<T> UpdateStatusAsync<TResource>(TResource resource, string fieldManager = null, CancellationToken cancellationToken = default) where TResource : T, IStatus
         {
-            // Build the delta JSON
-            var patch = new JsonPatchDocument<R>().Replace(x => x.Status, resource.Status);
-            return PatchCustomResourceStatusAsync(resource, patch, cancellationToken);
+            return PatchCustomResourceStatusAsync(resource, fieldManager, cancellationToken);
         }
 
         /// <summary>
@@ -322,25 +349,27 @@ namespace k8s.Operators
         private async Task<T> ReplaceCustomResourceAsync(T resource, CancellationToken cancellationToken)
         {
             _logger.LogDebug(
-                $"Replace Custom Resource, {(resource == null ? "" : JsonConvert.SerializeObject(resource))}");
+                "Replace Custom Resource, {Resource}",
+                resource == null ? "" : JsonConvert.SerializeObject(resource)
+            );
 
-            var result = (string.IsNullOrEmpty(resource.Metadata?.NamespaceProperty)) switch
+            var result = string.IsNullOrEmpty(resource.Namespace()) switch
             {
                 true => await _client.ReplaceClusterCustomObjectAsync(
                     resource,
                     _crd.Group,
                     _crd.Version,
                     _crd.Plural,
-                    resource.Metadata?.Name ?? resource.Name(),
+                    resource.Name(),
                     cancellationToken: cancellationToken
                 ).ConfigureAwait(false),
                 false => await _client.ReplaceNamespacedCustomObjectAsync(
                     resource,
                     _crd.Group,
                     _crd.Version,
-                    resource.Metadata.NamespaceProperty,
+                    resource.Namespace(),
                     _crd.Plural,
-                    resource.Metadata.Name,
+                    resource.Name(),
                     cancellationToken: cancellationToken
                 ).ConfigureAwait(false),
             };
@@ -348,28 +377,42 @@ namespace k8s.Operators
             return ToCustomResource(result);
         }
 
-        private async Task<T> PatchCustomResourceStatusAsync<R>(R resource, IJsonPatchDocument patch,
-            CancellationToken cancellationToken) where R : T, IStatus
+        private async Task<T> PatchCustomResourceStatusAsync<R>(R resource,
+            string manager = null,
+            CancellationToken cancellationToken = default) where R : T, IStatus
         {
-            _logger.LogDebug($"Patch Status, {(patch == null ? "" : JsonConvert.SerializeObject(patch))}");
-            var result = string.IsNullOrEmpty(resource.Metadata.NamespaceProperty) switch
+            var patchObject = new V1Patch(new {
+                status = resource.Status
+            }, V1Patch.PatchType.MergePatch);
+            patchObject.Validate();
+
+            _logger.LogDebug(
+                "Patch Status, {Resource}",
+                JsonConvert.SerializeObject(patchObject)
+            );
+
+            var result = string.IsNullOrEmpty(resource.Namespace()) switch
             {
                 true => await _client.PatchClusterCustomObjectStatusAsync(
-                    new V1Patch(patch, V1Patch.PatchType.ApplyPatch),
+                    patchObject,
                     _crd.Group,
                     _crd.Version,
                     _crd.Plural,
-                    resource.Metadata.Name,
+                    resource.Name(),
+                    fieldManager: manager,
                     cancellationToken: cancellationToken
                 ).ConfigureAwait(false),
                 false => await _client.PatchNamespacedCustomObjectStatusAsync(
-                    new V1Patch(patch, V1Patch.PatchType.MergePatch),
+                    patchObject,
                     _crd.Group,
                     _crd.Version,
-                    resource.Metadata.NamespaceProperty,
+                    resource.Namespace(),
                     _crd.Plural,
-                    resource.Metadata.Name,
-                    cancellationToken: cancellationToken
+                    resource.Name(),
+                    null,
+                    manager,
+                    null,
+                    cancellationToken
                 ).ConfigureAwait(false)
             };
 
@@ -381,7 +424,7 @@ namespace k8s.Operators
             return input switch
             {
                 JObject json => json.ToObject<T>(),
-                JsonElement json2 => json2.Deserialize<T>(new JsonSerializerOptions
+                JsonElement json => json.Deserialize<T>(new JsonSerializerOptions
                 {
                     PropertyNameCaseInsensitive = true,
                 }),

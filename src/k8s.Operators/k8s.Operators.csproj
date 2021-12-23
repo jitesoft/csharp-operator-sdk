@@ -3,12 +3,11 @@
   <PropertyGroup>
     <TargetFramework>net6.0</TargetFramework>
     <AssemblyName>k8s.Operators</AssemblyName>
-    <Version>1.1.0-beta1</Version>
-    <AssemblyOriginatorKeyFile>k8s.Operators.snk</AssemblyOriginatorKeyFile>
+    <Version>1.2.0-alpha1</Version>
     <LangVersion>10</LangVersion>
-    <PackageVersion>1.2.0-alpha1</PackageVersion>    
+    <PackageVersion>1.2.0-alpha1</PackageVersion>
   </PropertyGroup>
-  
+
   <PropertyGroup>
 		<IsPackable>True</IsPackable>
 		<PackageId>k8s.Operators</PackageId>
@@ -25,7 +24,6 @@
 
   <ItemGroup>
     <PackageReference Include="KubernetesClient" Version="7.0.3" />
-    <PackageReference Include="Microsoft.AspNetCore.JsonPatch" Version="6.0.1" />
     <PackageReference Include="Microsoft.Extensions.Logging" Version="6.0.0" />
     <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="6.0.0" />
     <PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="6.0.0" />

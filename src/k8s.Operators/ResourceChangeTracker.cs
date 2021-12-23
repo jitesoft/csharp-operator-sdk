@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using k8s.Operators.Logging;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace k8s.Operators
 {
@@ -17,7 +18,7 @@ namespace k8s.Operators
 
         public ResourceChangeTracker(OperatorConfiguration configuration, ILoggerFactory loggerFactory)
         {
-            this._logger = loggerFactory?.CreateLogger<ResourceChangeTracker>() ?? SilentLogger.Instance;
+            this._logger = loggerFactory?.CreateLogger<ResourceChangeTracker>() ?? NullLogger<ResourceChangeTracker>.Instance;
             this._lastResourceGenerationProcessed = new Dictionary<string, long>();
             this._discardDuplicates = configuration.DiscardDuplicateSpecGenerations;
         }
@@ -31,8 +32,8 @@ namespace k8s.Operators
             {
                 bool processedInPast = _lastResourceGenerationProcessed.TryGetValue(resource.Metadata.Uid, out long resourceGeneration);
 
-                return processedInPast 
-                    && resource.Metadata.Generation != null 
+                return processedInPast
+                    && resource.Metadata.Generation != null
                     && resourceGeneration >= resource.Metadata.Generation.Value;
             }
             else
@@ -58,6 +59,6 @@ namespace k8s.Operators
         public void TrackResourceGenerationAsDeleted(CustomResource resource)
         {
             _lastResourceGenerationProcessed.Remove(resource.Metadata.Uid);
-        }   
+        }
     }
 }

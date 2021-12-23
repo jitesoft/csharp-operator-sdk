@@ -7,7 +7,8 @@ using Microsoft.Rest;
 using Microsoft.Extensions.Logging;
 using k8s.Operators.Logging;
 using System.Diagnostics.CodeAnalysis;
-using Microsoft.IdentityModel.Tokens;
+using System.Linq;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace k8s.Operators
 {
@@ -29,12 +30,12 @@ namespace k8s.Operators
 
         public Operator(OperatorConfiguration configuration, IKubernetes client, ILoggerFactory loggerFactory = null)
         {
-            this._configuration = configuration;
-            this._client = client;
-            this._loggerFactory = loggerFactory;
-            this._logger = loggerFactory?.CreateLogger<Operator>() ?? SilentLogger.Instance;
-            this._watchers = new List<EventWatcher>();
-            this._cts = new CancellationTokenSource();
+            _configuration = configuration;
+            _client = client;
+            _loggerFactory = loggerFactory;
+            _logger = loggerFactory?.CreateLogger<Operator>() ?? NullLogger<Operator>.Instance;
+            _watchers = new List<EventWatcher>();
+            _cts = new CancellationTokenSource();
 
             TaskScheduler.UnobservedTaskException += (o, ev) =>
             {
@@ -42,7 +43,7 @@ namespace k8s.Operators
                 ev.SetObserved();
             };
 
-            // TODO: log versions
+            _logger.LogInformation("Operator SDK Version {Version}", typeof(Operator).Assembly.GetName().Version!.ToString(3));
         }
 
         /// <summary>
@@ -69,10 +70,7 @@ namespace k8s.Operators
                 throw new InvalidOperationException("A controller cannot be added once the operator has started");
             }
 
-            if (watchNamespace == null)
-            {
-                watchNamespace = ALL_NAMESPACES;
-            }
+            watchNamespace ??= ALL_NAMESPACES;
 
             _logger.LogDebug($"Added controller {controller} on namespace {(string.IsNullOrEmpty(watchNamespace) ? "\"\"" : watchNamespace)}");
 
@@ -81,30 +79,61 @@ namespace k8s.Operators
             return this;
         }
 
+        public IController AddControllerOfType<TController, TResource>() where TController : IController<TResource> where TResource : CustomResource
+        {
+            var controller = Activator.CreateInstance(
+                typeof(TController),
+                _configuration,
+                _client,
+                _loggerFactory
+            ) as IController<TResource>;
+
+            AddController(
+                controller,
+                _configuration.WatchNamespace,
+                _configuration.WatchLabelSelector
+            );
+
+            return controller;
+        }
+
         /// <summary>
         /// Adds a new instance of a controller of type C to handle the events of the custom resource
         /// </summary>
-        /// <typeparam name="C">The type of the controller. C must implement IController<R> and expose a constructor that accepts (OperatorConfiguration, IKubernetes, ILoggerFactory)</typeparam>
-        /// <returns>The instance of the controller</return>
-        public IController AddControllerOfType<C>() where C : IController
+        /// <typeparam name="TController">The type of the controller. C must implement IController<R> and expose a constructor that accepts (OperatorConfiguration, IKubernetes, ILoggerFactory)</typeparam>
+        /// <return>The instance of the controller</return>
+        public IController AddControllerOfType<TController>() where TController : IController
         {
             // Use Reflection to instantiate the controller and pass it to AddController<R>()
 
-            // ASSUMPTION: C implements IController<R>, where R is a custom resource
+            // ASSUMPTION: TController implements IController<TResource>, where TResource is a custom resource
+            // Retrieve the type of the resource.
+            var resourceType = typeof(TController).BaseType?.GetGenericArguments()[0];
 
-            // Retrieve the type of R
-            var R = typeof(C).BaseType.GetGenericArguments()[0];
+            if (resourceType == null)
+            {
+                throw new Exception("Resource type not found.");
+            }
 
             // Instantiate the controller implementing IController<R> via the standard constructor (OperatorConfiguration, IKubernetes, ILoggerFactory)
-            object controller = Activator.CreateInstance(typeof(C), _configuration, _client, _loggerFactory);
+            var controller = Activator.CreateInstance(
+                typeof(TController),
+                _configuration,
+                _client,
+                _loggerFactory
+            ) as IController;
 
             // Invoke AddController<R>()
-            typeof(Operator)
-                .GetMethod("AddController")
-                .MakeGenericMethod(R)
-                .Invoke(this, new object[] { controller, _configuration.WatchNamespace, _configuration.WatchLabelSelector });
+            typeof(Operator).GetMethod("AddController")!
+                .MakeGenericMethod(resourceType)
+                .Invoke(this, new object[]
+                {
+                    controller,
+                    _configuration.WatchNamespace,
+                    _configuration.WatchLabelSelector
+                });
 
-            return (IController) controller;
+            return controller;
         }
 
         /// <summary>
@@ -117,41 +146,40 @@ namespace k8s.Operators
                 throw new ObjectDisposedException("Operator");
             }
 
-            _logger.LogInformation($"Start operator");
+            _logger.LogInformation("Start operator");
 
             if (_watchers.Count == 0)
             {
-                _logger.LogDebug($"No controller added, stopping operator");
+                _logger.LogDebug("No controller added, stopping operator");
                 Stop();
                 return 0;
             }
 
             _isStarted = true;
 
-            var tasks = new List<Task>();
-
-            foreach (var entry in _watchers)
+            var tasks = _watchers.Select<EventWatcher, Task>(watcher =>
             {
-                // Invoke WatchCustomResourceAsync() via reflection, since T is in a variable
+                // Invoke WatchCustomResourceAsync via reflection, since T is in a variable
                 var watchCustomResourceAsync = typeof(Operator)
-                    .GetMethod("WatchCustomResourceAsync", BindingFlags.NonPublic | BindingFlags.Instance)
-                    .MakeGenericMethod(entry.ResourceType);
+                    .GetMethod("WatchCustomResourceAsync", BindingFlags.NonPublic | BindingFlags.Instance)!
+                    .MakeGenericMethod(watcher.ResourceType);
 
-                // Start a watcher for each <resource, namespace, labelSelector>
-                var watcher = ((Task) watchCustomResourceAsync.Invoke(this, new object[] { entry }))
-                    .ContinueWith(t =>
+                return ((Task)watchCustomResourceAsync.Invoke(this, new[] { watcher })).ContinueWith(task =>
+                {
+                    if (task.IsFaulted)
                     {
-                        if (t.IsFaulted)
-                        {
-                            _logger.LogError(t.Exception.Flatten().InnerException, $"Error watching {entry.Namespace}/{entry.CRD.Plural} {entry.LabelSelector}");
-                        }
-                    });
-
-                tasks.Add(watcher);
-            }
+                        _logger.LogError(
+                            task.Exception!.Flatten().InnerException,
+                            "Error watching {Namespace}/{Plural} {LabelSelector}",
+                            watcher.Namespace,
+                            watcher.CRD.Plural,
+                            watcher.LabelSelector
+                        );
+                    }
+                });
+            });
 
             await Task.WhenAll(tasks.ToArray());
-
             return _unexpectedWatcherTermination ? 1 : 0;
         }
 
@@ -160,7 +188,7 @@ namespace k8s.Operators
         /// </summary>
         public void Stop()
         {
-            _logger.LogInformation($"Stop operator");
+            _logger.LogInformation("Stop operator");
             Dispose();
         }
 
@@ -179,10 +207,9 @@ namespace k8s.Operators
                 return;
             }
 
-            Task<HttpOperationResponse<object>> response;
-            if (watcher.Namespace.IsNullOrEmpty())
+            var response = string.IsNullOrEmpty(watcher.Namespace) switch
             {
-                response = _client.ListClusterCustomObjectWithHttpMessagesAsync(
+                true => _client.ListClusterCustomObjectWithHttpMessagesAsync(
                     watcher.CRD.Group,
                     watcher.CRD.Version,
                     watcher.CRD.Plural,
@@ -190,11 +217,8 @@ namespace k8s.Operators
                     labelSelector: watcher.LabelSelector,
                     timeoutSeconds: (int)TimeSpan.FromMinutes(60).TotalSeconds,
                     cancellationToken: _cts.Token
-                );
-            }
-            else
-            {
-                response = _client.ListNamespacedCustomObjectWithHttpMessagesAsync(
+                ),
+                _ => _client.ListNamespacedCustomObjectWithHttpMessagesAsync(
                     watcher.CRD.Group,
                     watcher.CRD.Version,
                     watcher.Namespace,
@@ -203,15 +227,25 @@ namespace k8s.Operators
                     labelSelector: watcher.LabelSelector,
                     timeoutSeconds: (int)TimeSpan.FromMinutes(60).TotalSeconds,
                     cancellationToken: _cts.Token
-                );
-            }
+                ),
+            };
 
-            _logger.LogDebug($"Begin watch {watcher.Namespace}/{watcher.CRD.Plural} {watcher.LabelSelector}");
+            _logger.LogDebug(
+                "Begin watch {Namespace}/{Plural} {LabelSelector}",
+                string.IsNullOrEmpty(watcher.Namespace) ? "*" : watcher.Namespace,
+                watcher.CRD.Plural,
+                watcher.LabelSelector ?? ""
+            );
 
             using var _ = response.Watch<T, object>(watcher.OnIncomingEvent, OnWatcherError, OnWatcherClose);
             await WaitOneAsync(_cts.Token.WaitHandle);
 
-            _logger.LogDebug($"End watch {watcher.Namespace}/{watcher.CRD.Plural} {watcher.LabelSelector}");
+            _logger.LogDebug(
+                "End watch {Namespace}/{Plural} {LabelSelector}",
+                string.IsNullOrEmpty(watcher.Namespace) ? "*" : watcher.Namespace,
+                watcher.CRD.Plural,
+                watcher.LabelSelector ?? ""
+            );
         }
 
         [ExcludeFromCodeCoverage]
@@ -228,19 +262,21 @@ namespace k8s.Operators
         {
             _logger.LogError("Watcher closed");
 
-            if (IsRunning)
+            if (!IsRunning)
             {
-                // At least one watcher stopped unexpectedly. Stop the operator, let Kubernetes restart it
-                _unexpectedWatcherTermination = true;
-                Stop();
+                return;
             }
+
+            // At least one watcher stopped unexpectedly. Stop the operator, let Kubernetes restart it
+            _unexpectedWatcherTermination = true;
+            Stop();
         }
 
         /// <summary>
         /// Returns a Task wrapper for a synchronous wait on a wait handle
         /// </summary>
         /// <see cref="https://msdn.microsoft.com/en-us/library/hh873178%28v=vs.110%29.aspx#WHToTap"/>
-        private Task<bool> WaitOneAsync(WaitHandle waitHandle, int millisecondsTimeOutInterval = Timeout.Infinite)
+        private static Task<bool> WaitOneAsync(WaitHandle waitHandle, int millisecondsTimeOutInterval = Timeout.Infinite)
         {
             if (waitHandle == null)
             {
@@ -251,17 +287,17 @@ namespace k8s.Operators
 
             var rwh = ThreadPool.RegisterWaitForSingleObject(
                 waitHandle,
-                callBack: (state, timedOut) => { tcs.TrySetResult(!timedOut); },
-                state: null,
-                millisecondsTimeOutInterval: millisecondsTimeOutInterval,
-                executeOnlyOnce: true
+                (_, timedOut) => { tcs.TrySetResult(!timedOut); },
+                null,
+                millisecondsTimeOutInterval,
+                true
             );
 
             var task = tcs.Task;
 
             task.ContinueWith(t =>
             {
-                rwh.Unregister(waitObject: null);
+                rwh.Unregister(null);
                 try
                 {
                     return t.Result;
@@ -269,7 +305,6 @@ namespace k8s.Operators
                 catch
                 {
                     return false;
-                    throw;
                 }
             });
 
@@ -278,7 +313,7 @@ namespace k8s.Operators
 
         protected override void DisposeInternal()
         {
-            _logger.LogInformation($"Disposing operator");
+            _logger.LogInformation("Disposing operator");
 
             // Signal the watchers to stop
             _cts.Cancel();

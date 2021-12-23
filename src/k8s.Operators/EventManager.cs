@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using k8s.Operators.Logging;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace k8s.Operators
 {
@@ -10,20 +11,18 @@ namespace k8s.Operators
     /// </summary>
     public class EventManager
     {
-        private ILogger _logger;
-
-        // Next event to handle, for each resource. 
+        private readonly ILogger _logger;
+        // Next event to handle, for each resource.
         // A real queue is not used since intermediate events are discarded and only the queue head is stored.
-        private Dictionary<string, CustomResourceEvent> _queuesByResource;
-
+        private readonly Dictionary<string, CustomResourceEvent> _queuesByResource;
         // Events that are currently being handled
-        private Dictionary<string, CustomResourceEvent> _handling;
+        private readonly Dictionary<string, CustomResourceEvent> _handling;
 
-        public EventManager(ILoggerFactory loggerFactory)
+        public EventManager(ILoggerFactory loggerFactory = null)
         {
-            this._logger = loggerFactory?.CreateLogger<EventManager>() ?? SilentLogger.Instance;
-            this._queuesByResource = new Dictionary<string, CustomResourceEvent>();
-            this._handling = new Dictionary<string, CustomResourceEvent>();
+            _logger = loggerFactory?.CreateLogger<EventManager>() ?? NullLogger<EventManager>.Instance;
+            _queuesByResource = new Dictionary<string, CustomResourceEvent>();
+            _handling = new Dictionary<string, CustomResourceEvent>();
         }
 
         /// <summary>
@@ -33,7 +32,7 @@ namespace k8s.Operators
         {
             lock (this)
             {
-                _logger.LogTrace($"Enqueue {resourceEvent}");
+                _logger.LogTrace("Enqueue {Event}", resourceEvent);
                 // Insert or update the next event for the resource
                 _queuesByResource[resourceEvent.ResourceUid] = resourceEvent;
             }
@@ -48,7 +47,7 @@ namespace k8s.Operators
             {
                 if (_queuesByResource.TryGetValue(resourceUid, out CustomResourceEvent result))
                 {
-                    _logger.LogTrace($"Peek {result}");
+                    _logger.LogTrace("Peek {Result}", result);
                 }
                 return result;
             }
@@ -63,16 +62,18 @@ namespace k8s.Operators
             {
                 if (IsHandling(resourceUid, out var handlingEvent))
                 {
-                    _logger.LogDebug($"Postponed Dequeue, handling {handlingEvent}");
+                    _logger.LogDebug("Postponed Dequeue, handling {Event}", handlingEvent);
                     return null;
                 }
                 else
                 {
-                    if (_queuesByResource.TryGetValue(resourceUid, out CustomResourceEvent result))
+                    if (!_queuesByResource.TryGetValue(resourceUid, out CustomResourceEvent result))
                     {
-                        _queuesByResource.Remove(resourceUid);
-                        _logger.LogTrace($"Dequeue {result}");
+                        return result;
                     }
+
+                    _queuesByResource.Remove(resourceUid);
+                    _logger.LogTrace("Dequeue {Result}", result);
                     return result;
                 }
             }
@@ -85,7 +86,7 @@ namespace k8s.Operators
         {
             lock (this)
             {
-                _logger.LogTrace($"BeginHandleEvent {resourceEvent}");
+                _logger.LogTrace("BeginHandleEvent {Event}", resourceEvent);
                 _handling[resourceEvent.ResourceUid] = resourceEvent;
             }
         }
@@ -97,7 +98,7 @@ namespace k8s.Operators
         {
             lock (this)
             {
-                _logger.LogTrace($"EndHandleEvent {resourceEvent}");
+                _logger.LogTrace("EndHandleEvent {Event}", resourceEvent);
                 _handling.Remove(resourceEvent.ResourceUid);
             }
         }
@@ -108,6 +109,6 @@ namespace k8s.Operators
         private bool IsHandling(string resourceUid, out CustomResourceEvent handlingEvent)
         {
             return _handling.TryGetValue(resourceUid, out handlingEvent);
-        }        
+        }
     }
 }
