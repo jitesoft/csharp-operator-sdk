@@ -5,67 +5,68 @@ using System.Dynamic;
 using k8s.Models;
 using Microsoft.Extensions.Logging;
 
-namespace k8s.Operators.Samples.Dynamic
+namespace k8s.Operators.Samples.Dynamic;
+
+public class MyDynamicResourceController : Controller<MyDynamicResource>
 {
-    public class MyDynamicResourceController : Controller<MyDynamicResource>
-    {        
-        public MyDynamicResourceController(OperatorConfiguration configuration, IKubernetes client, ILoggerFactory loggerFactory = null) : base(configuration, client, loggerFactory)
-        {
-        }
+    public MyDynamicResourceController(OperatorConfiguration configuration, IKubernetes client,
+        ILoggerFactory loggerFactory = null) : base(configuration, client, loggerFactory)
+    {
+    }
 
-        protected override async Task AddOrModifyAsync(MyDynamicResource resource, CancellationToken cancellationToken)
+    protected override async Task AddOrModifyAsync(MyDynamicResource resource, CancellationToken cancellationToken)
+    {
+        _logger.LogInformation($"Begin AddOrModify {resource}");
+
+        try
         {
-            _logger.LogInformation($"Begin AddOrModify {resource}");
-            
-            try
+            // Simulate event handling
+            await Task.Delay(5000, cancellationToken);
+
+            // Update the resource
+            resource.Metadata.EnsureAnnotations()["custom-key"] = DateTime.UtcNow.ToString("s");
+            await UpdateResourceAsync(resource, cancellationToken);
+
+            // Update the status
+            if (resource.Status?.actualProperty != resource.Spec.desiredProperty)
             {
-                // Simulate event handling
-                await Task.Delay(5000, cancellationToken);
-
-                // Update the resource
-                resource.Metadata.EnsureAnnotations()["custom-key"] = DateTime.UtcNow.ToString("s");
-                await UpdateResourceAsync(resource, cancellationToken);
-                
-                // Update the status
-                if (resource.Status?.actualProperty != resource.Spec.desiredProperty)
+                if (resource.Status == null)
                 {
-                    if (resource.Status == null)
-                    {
-                        resource.Status = new ExpandoObject();
-                    }
-                    resource.Status.actualProperty = resource.Spec.desiredProperty;
-                    await UpdateStatusAsync(resource, cancellationToken);
+                    resource.Status = new ExpandoObject();
                 }
-            }
-            catch (OperationCanceledException)
-            {
-                _logger.LogInformation($"Interrupted! Trying to shutdown gracefully...");
 
-                // Simulate a blocking operation
-                Task.Delay(3000).Wait();
+                resource.Status.actualProperty = resource.Spec.desiredProperty;
+                await UpdateStatusAsync(resource, null, cancellationToken);
             }
-
-            _logger.LogInformation($"End AddOrModify {resource}");
         }
-
-        protected override async Task DeleteAsync(MyDynamicResource resource, CancellationToken cancellationToken)
+        catch (OperationCanceledException)
         {
-            _logger.LogInformation($"Begin Delete {resource}");
-            
-            try
-            {
-                // Simulate event handling
-                await Task.Delay(5000, cancellationToken);
-            }
-            catch (OperationCanceledException)
-            {
-                _logger.LogInformation($"Interrupted! Trying to shutdown gracefully...");
+            _logger.LogInformation($"Interrupted! Trying to shutdown gracefully...");
 
-                // Simulate a blocking operation
-                Task.Delay(3000).Wait();
-            }
-
-            _logger.LogInformation($"End Delete {resource}");
+            // Simulate a blocking operation
+            Task.Delay(3000).Wait();
         }
+
+        _logger.LogInformation($"End AddOrModify {resource}");
+    }
+
+    protected override async Task DeleteAsync(MyDynamicResource resource, CancellationToken cancellationToken)
+    {
+        _logger.LogInformation($"Begin Delete {resource}");
+
+        try
+        {
+            // Simulate event handling
+            await Task.Delay(5000, cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            _logger.LogInformation($"Interrupted! Trying to shutdown gracefully...");
+
+            // Simulate a blocking operation
+            Task.Delay(3000).Wait();
+        }
+
+        _logger.LogInformation($"End Delete {resource}");
     }
 }

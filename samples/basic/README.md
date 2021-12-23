@@ -11,7 +11,7 @@ See the implementation of `MyResourceController.cs` for more details.
 
 ## Prerequisites
 
-- [.NET Core 3.1 SDK](https://dotnet.microsoft.com/download/dotnet-core/3.1)
+- [net6 SDK](https://dotnet.microsoft.com/download/dotnet-core/)
 - [Kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/)
 - [Kubernetes](https://kubernetes.io/docs/setup/)
 
