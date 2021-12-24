@@ -74,7 +74,7 @@ class Program
             }
 
             var loggerFactory = LoggerFactory.Create(builder => builder
-                .AddConsole(options => options.Format=ConsoleLoggerFormat.Systemd)
+                .AddSimpleConsole()
                 .SetMinimumLevel(logLevel)
             );
 
