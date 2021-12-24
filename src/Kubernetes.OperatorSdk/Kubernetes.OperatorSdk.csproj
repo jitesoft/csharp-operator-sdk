@@ -3,7 +3,6 @@
     <PropertyGroup>
         <TargetFramework>net6.0</TargetFramework>
         <AssemblyName>Kubernetes.OperatorSdk</AssemblyName>
-        <Version>1.2.0-alpha1</Version>
         <LangVersion>10</LangVersion>
         <RootNamespace>Kubernetes.OperatorSdk</RootNamespace>
         <PackageLicenseUrl>https://github.com/jitesoft/csharp-operator-sdk/blob/master/LICENSE</PackageLicenseUrl>
