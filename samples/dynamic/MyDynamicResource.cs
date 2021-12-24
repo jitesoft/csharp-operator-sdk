@@ -1,6 +1,6 @@
 using System.Text.Json;
 
-namespace k8s.Operators.Samples.Dynamic;
+namespace Kubernetes.OperatorSdk.Samples.Dynamic;
 
 [CustomResourceDefinition("csharp-operator.example.com", "v1", "myresources")]
 public class MyDynamicResource : DynamicCustomResource

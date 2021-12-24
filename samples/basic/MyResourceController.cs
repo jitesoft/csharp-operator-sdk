@@ -1,10 +1,11 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using k8s;
 using k8s.Models;
 using Microsoft.Extensions.Logging;
 
-namespace k8s.Operators.Samples.Basic;
+namespace Kubernetes.OperatorSdk.Samples.Basic;
 
 public class MyResourceController : Controller<MyResource>
 {

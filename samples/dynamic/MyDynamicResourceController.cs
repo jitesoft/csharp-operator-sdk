@@ -2,10 +2,11 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Dynamic;
+using k8s;
 using k8s.Models;
 using Microsoft.Extensions.Logging;
 
-namespace k8s.Operators.Samples.Dynamic;
+namespace Kubernetes.OperatorSdk.Samples.Dynamic;
 
 public class MyDynamicResourceController : Controller<MyDynamicResource>
 {

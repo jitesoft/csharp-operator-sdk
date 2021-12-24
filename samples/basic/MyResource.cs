@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace k8s.Operators.Samples.Basic;
+namespace Kubernetes.OperatorSdk.Samples.Basic;
 
 [CustomResourceDefinition("csharp-operator.example.com", "v1", "myresources")]
 public class MyResource : CustomResource<MyResource.MyResourceSpec, MyResource.MyResourceStatus>

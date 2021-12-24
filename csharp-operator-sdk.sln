@@ -5,17 +5,17 @@ VisualStudioVersion = 15.0.26124.0
 MinimumVisualStudioVersion = 15.0.26124.0
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{474A20F0-CDE8-48DA-93D3-38FD7B9D6D60}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "k8s.Operators", "src\k8s.Operators\k8s.Operators.csproj", "{52D177C6-E107-4967-965F-39ECBF62823B}"
-EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{FCE39CFE-B106-4D00-9816-CCAABB327AC9}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "k8s.Operators.Tests", "tests\k8s.Operators.Tests\k8s.Operators.Tests.csproj", "{D3388B9E-D9FB-41D8-9E82-7FBB63A9B232}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Kubernetes.OperatorSdk.Tests", "tests\Kubernetes.OperatorSdk.Tests\Kubernetes.OperatorSdk.Tests.csproj", "{D3388B9E-D9FB-41D8-9E82-7FBB63A9B232}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "samples", "samples", "{760190CC-EB11-452A-B6BF-6ED305D8657F}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "k8s.Operators.Samples.Basic", "samples\basic\k8s.Operators.Samples.Basic.csproj", "{A737113F-AC8E-42E7-94A2-8C035BF11A94}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Kubernetes.OperatorSdk.Samples.Basic", "samples\basic\Kubernetes.OperatorSdk.Samples.Basic.csproj", "{A737113F-AC8E-42E7-94A2-8C035BF11A94}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "k8s.Operators.Samples.Dynamic", "samples\dynamic\k8s.Operators.Samples.Dynamic.csproj", "{BC34DA91-5F79-49C0-A119-5F43B60E88C5}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Kubernetes.OperatorSdk.Samples.Dynamic", "samples\dynamic\Kubernetes.OperatorSdk.Samples.Dynamic.csproj", "{BC34DA91-5F79-49C0-A119-5F43B60E88C5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Kubernetes.OperatorSdk", "src\Kubernetes.OperatorSdk\Kubernetes.OperatorSdk.csproj", "{564C8263-6A1A-4395-BCA6-E8C5F56C782F}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -30,18 +30,6 @@ Global
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{52D177C6-E107-4967-965F-39ECBF62823B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{52D177C6-E107-4967-965F-39ECBF62823B}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{52D177C6-E107-4967-965F-39ECBF62823B}.Debug|x64.ActiveCfg = Debug|Any CPU
-		{52D177C6-E107-4967-965F-39ECBF62823B}.Debug|x64.Build.0 = Debug|Any CPU
-		{52D177C6-E107-4967-965F-39ECBF62823B}.Debug|x86.ActiveCfg = Debug|Any CPU
-		{52D177C6-E107-4967-965F-39ECBF62823B}.Debug|x86.Build.0 = Debug|Any CPU
-		{52D177C6-E107-4967-965F-39ECBF62823B}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{52D177C6-E107-4967-965F-39ECBF62823B}.Release|Any CPU.Build.0 = Release|Any CPU
-		{52D177C6-E107-4967-965F-39ECBF62823B}.Release|x64.ActiveCfg = Release|Any CPU
-		{52D177C6-E107-4967-965F-39ECBF62823B}.Release|x64.Build.0 = Release|Any CPU
-		{52D177C6-E107-4967-965F-39ECBF62823B}.Release|x86.ActiveCfg = Release|Any CPU
-		{52D177C6-E107-4967-965F-39ECBF62823B}.Release|x86.Build.0 = Release|Any CPU
 		{D3388B9E-D9FB-41D8-9E82-7FBB63A9B232}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{D3388B9E-D9FB-41D8-9E82-7FBB63A9B232}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{D3388B9E-D9FB-41D8-9E82-7FBB63A9B232}.Debug|x64.ActiveCfg = Debug|Any CPU
@@ -78,11 +66,23 @@ Global
 		{BC34DA91-5F79-49C0-A119-5F43B60E88C5}.Release|x64.Build.0 = Release|Any CPU
 		{BC34DA91-5F79-49C0-A119-5F43B60E88C5}.Release|x86.ActiveCfg = Release|Any CPU
 		{BC34DA91-5F79-49C0-A119-5F43B60E88C5}.Release|x86.Build.0 = Release|Any CPU
+		{564C8263-6A1A-4395-BCA6-E8C5F56C782F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{564C8263-6A1A-4395-BCA6-E8C5F56C782F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{564C8263-6A1A-4395-BCA6-E8C5F56C782F}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{564C8263-6A1A-4395-BCA6-E8C5F56C782F}.Debug|x64.Build.0 = Debug|Any CPU
+		{564C8263-6A1A-4395-BCA6-E8C5F56C782F}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{564C8263-6A1A-4395-BCA6-E8C5F56C782F}.Debug|x86.Build.0 = Debug|Any CPU
+		{564C8263-6A1A-4395-BCA6-E8C5F56C782F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{564C8263-6A1A-4395-BCA6-E8C5F56C782F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{564C8263-6A1A-4395-BCA6-E8C5F56C782F}.Release|x64.ActiveCfg = Release|Any CPU
+		{564C8263-6A1A-4395-BCA6-E8C5F56C782F}.Release|x64.Build.0 = Release|Any CPU
+		{564C8263-6A1A-4395-BCA6-E8C5F56C782F}.Release|x86.ActiveCfg = Release|Any CPU
+		{564C8263-6A1A-4395-BCA6-E8C5F56C782F}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
-		{52D177C6-E107-4967-965F-39ECBF62823B} = {474A20F0-CDE8-48DA-93D3-38FD7B9D6D60}
 		{D3388B9E-D9FB-41D8-9E82-7FBB63A9B232} = {FCE39CFE-B106-4D00-9816-CCAABB327AC9}
 		{A737113F-AC8E-42E7-94A2-8C035BF11A94} = {760190CC-EB11-452A-B6BF-6ED305D8657F}
 		{BC34DA91-5F79-49C0-A119-5F43B60E88C5} = {760190CC-EB11-452A-B6BF-6ED305D8657F}
+		{564C8263-6A1A-4395-BCA6-E8C5F56C782F} = {474A20F0-CDE8-48DA-93D3-38FD7B9D6D60}
 	EndGlobalSection
 EndGlobal

@@ -1,12 +1,13 @@
 ﻿using System;
 using System.Text.Json;
 using System.Threading.Tasks;
+using k8s;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Console;
 using Microsoft.Rest;
-using k8s.Operators.Logging;
+using Kubernetes.OperatorSdk.Logging;
 
-namespace k8s.Operators.Samples.Dynamic;
+namespace Kubernetes.OperatorSdk.Samples.Dynamic;
 
 class Program
 {
@@ -63,7 +64,7 @@ class Program
                 logger.LogDebug($"Client configuration: {JsonSerializer.Serialize(config)}");
             }
 
-            return new Kubernetes(config);
+            return new k8s.Kubernetes(config);
         }
 
         ILoggerFactory SetupLogging(string[] args)

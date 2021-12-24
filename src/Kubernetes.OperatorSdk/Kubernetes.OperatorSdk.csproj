@@ -1,0 +1,40 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net6.0</TargetFramework>
+        <AssemblyName>Kubernetes.OperatorSdk</AssemblyName>
+        <Version>1.2.0-alpha1</Version>
+        <LangVersion>10</LangVersion>
+        <RootNamespace>Kubernetes.OperatorSdk</RootNamespace>
+        <PackageLicenseUrl>https://github.com/jitesoft/csharp-operator-sdk/blob/master/LICENSE</PackageLicenseUrl>
+        <Company>Jitesoft</Company>
+        <Product>Kubernetes.OperatorSdk</Product>
+    </PropertyGroup>
+
+    <PropertyGroup Condition=" '$(Version)' == '' ">
+        <VersionSuffix Condition=" '$(VersionSuffix)' == '' ">0.0.1</VersionSuffix>
+        <Version Condition=" '$(Version)' == '' ">$(VersionSuffix)</Version>
+    </PropertyGroup>
+
+    <PropertyGroup>
+        <IsPackable>True</IsPackable>
+        <PackageId>Kubernetes.OperatorSdk</PackageId>
+        <Title>C# Operator SDK</Title>
+        <Description>Build Kubernetes operators with net6
+            Fork of Alberto Falossi's k8s.Operators package.
+        </Description>
+        <Authors>Jitesoft</Authors>
+        <PackageTags>kubernetes;operator;operators;c#;k8s;</PackageTags>
+        <PackageProjectUrl>https://github.com/jitesoft/csharp-operator-sdk</PackageProjectUrl>
+        <RepositoryUrl>https://github.com/jitesoft/csharp-operator-sdk</RepositoryUrl>
+        <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
+        <IncludeSymbols>true</IncludeSymbols>
+        <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="KubernetesClient" Version="7.0.4"/>
+        <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="6.0.0"/>
+    </ItemGroup>
+
+</Project>
