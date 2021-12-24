@@ -13,8 +13,8 @@ jobs:
         with:
           dotnet-version: '6.0'
       - name: Build
-        run: dotnet build --configuration Release src/k8s.Operators -p:VersionPrefix=${{ github.event.release.tag_name }}
+        run: dotnet build --configuration Release src/Kubernetes.OperatorSdk -p:VersionPrefix=${{ github.event.release.tag_name }}
       - name: Package
-        run: dotnet pack --configuration Release src/k8s.Operators -p:VersionPrefix=${{ github.event.release.tag_name }} -o dist/
+        run: dotnet pack --configuration Release src/Kubernetes.OperatorSdk -p:VersionPrefix=${{ github.event.release.tag_name }} -o dist/
       - name: publish GH
-        run: dotnet nuget push dist/*.nupkg -k ${{secrets.GITHUB_TOKEN}} -s https://nuget.pkg.github.com/jitesoft/csharp-operator-sdk/index.json
+        run: dotnet nuget push dist/*nupkg -k ${{secrets.GITHUB_TOKEN}} -s https://nuget.pkg.github.com/jitesoft/csharp-operator-sdk/index.json
